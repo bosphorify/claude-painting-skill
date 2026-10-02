@@ -25,9 +25,10 @@
   at their own lightness; alla prima block-in (`dry=False`) then `wet_in_wet(0.7, 18*S)` = Turner's rubbed
   passages; the smoke's root as an ellipse along its way out; `spatter` flurries; a body pass in the eye.
 - **Failed:** knife slabs (paper cut-outs); scrapes wider than ~10 px (bare linen = holes); `scumble` and
-  `dry_bristle` fills (basketwork, zippers on linen); `glaze_wide` (grey rectangles); crackle even at 0.1 (dried
-  mud); `cv.impasto` on narrow strokes (leaves, piped icing); `glaze` with a soft mask (dithered edge); dragging
-  the canvas's own colours (scrambles gradients); a smear pass over everything (reads as a twirl filter).
+  `dry_bristle` fills (basketwork, zippers on linen); `glaze_wide` (grey rectangles); crackle even at 0.1 (dried mud;
+  the old crackle, redone 2026-09-29); `cv.impasto` on narrow strokes (leaves, piped icing); `glaze` with a soft mask
+  (dithered edge); dragging the canvas's own colours (scrambles gradients); a smear pass over everything (reads as a
+  twirl filter).
 - **Parameters that worked:**
   ```python
   cv.ground("yellow_ochre", texture="linen", tone=0.07)
@@ -45,9 +46,10 @@
                       ("yellow_ochre", 0.12))                                      # cold grey-green, L 0.65
   cv.finish(light=(-0.5, -0.6), varnish=0.25, weave=0.25)                          # no crackle
   ```
-- **Kit gaps:** circular `fields.vortex` only; no LIC helper; `fill_strokes` makes horizontal one-point dabs
-  wherever a stroke can't take a step inside its mask (soft margins, small islands: use a hard mask at 0.5 and
-  keep its largest region); `glaze` thresholds soft masks; crackle all-or-nothing; scumble has no direction.
+- **Kit gaps:** circular `fields.vortex` only; no LIC helper; `fill_strokes` makes horizontal one-point dabs wherever
+  a stroke can't take a step inside its mask (soft margins, small islands: use a hard mask at 0.5 and keep its largest
+  region); `glaze` thresholds soft masks; scumble has no direction. (Crackle was all-or-nothing; redone 2026-09-29,
+  see kit.md.)
   Extended the kit with `spatter`.
 - **Next time:** start from the lopsided S, not a centred vortex; check 2048 px and a hand crop of the boat from
   round 2; ask the fresh-eye critic early and use blind A/B between versions (critics' percentages drift).

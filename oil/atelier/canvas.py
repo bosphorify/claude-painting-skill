@@ -17,6 +17,7 @@ TEXTURES = ("linen", "cotton", "paper", "panel")
 class Canvas:
     """Painting state. color: linear RGB HxWx3; height: paint thickness; wet: 0..1; tooth: 0..1;
     underlayer: the color as of the last dry() (or the ground), which scraping wet paint reveals.
+    texture: the ground's texture (None before ground()), which sets finish()'s craquelure pattern.
     strokes counts the brush strokes laid so far; started is when the canvas was made (perf_counter).
 
     All randomness goes through self.rng, so the same seed and calls give the same pixels.
@@ -48,6 +49,7 @@ class Canvas:
         self.height = np.zeros(self.shape, np.float32)
         self.wet = np.zeros(self.shape, np.float32)
         self.tooth = np.zeros(self.shape, np.float32)
+        self.texture = None
 
     def ground(self, color, texture="linen", tone=0.35):
         """Prime the support and tone it (imprimatura).
@@ -66,6 +68,7 @@ class Canvas:
         }[texture]
         bumps = _normalize(raw())
         self.tooth = (0.5 + relief * (bumps - 0.5)).astype(np.float32)
+        self.texture = texture
 
         streaks = _smooth_noise(self.rng, self.shape, (40, 220))
         valleys = np.median(self.tooth) - self.tooth

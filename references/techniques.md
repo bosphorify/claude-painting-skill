@@ -26,7 +26,7 @@ To see what a tool looks like before using it, open the test sheets: `oil/out/st
   - So `fields.constant(-a)` runs parallel to `cv.hatch(mask, color, angle=a)`.
 - **State:** `cv.color` (linear RGB), `cv.height` (paint thickness, lit by `finish`), `cv.wet` (0..1, what the brush picks up and `wet_in_wet` moves), `cv.tooth` (weave or paper grain; dry brush catches on it), `cv.underlayer` (the color at the last `dry()`, revealed by scraping).
 - **Randomness** all comes from `cv.rng`, so the same script and seed give the same pixels. Pass `cv.rng` to `fields.noise`.
-- **Speed** (M-series Mac): 20k medium strokes take about 35 s at 2048×1536; `paint_from_design` with 3 passes takes about 20 s at 2048 px; `finish` 1-2 s; the starter takes about 10 s at 900 px and 30 s at 2048 px.
+- **Speed** (M-series Mac): 20k medium strokes take about 35 s at 2048×1536; `paint_from_design` with 3 passes takes about 20 s at 2048 px; `finish` 1-2 s (2-4 s with crackle at 2048 px); the starter takes about 10 s at 900 px and 30 s at 2048 px.
 
 ## Vocabulary → calls
 
@@ -53,7 +53,7 @@ To see what a tool looks like before using it, open the test sheets: `oil/out/st
 | directional brushwork, a swirling sky | `fields.vortex` / `noise` / `contour` / `combine` driving `fill_strokes` or `paint_from_design` |
 | liner work: rigging, branches, grass | `brush("rigger")` hand strokes |
 | feathering, foliage dabs | `brush("fan")` |
-| varnish, craquelure, raking light | `cv.finish(light=..., varnish=..., crackle=..., scale=S)` |
+| varnish, craquelure, raking light, an old master's aged surface | `cv.finish(light=..., varnish=..., crackle=..., grime=..., edge=..., scale=S)` |
 
 ## Palette and pigments
 
@@ -248,12 +248,17 @@ stats = cv.paint_from_design(design, passes, field=flow,
 
 ## Finish
 
-`cv.finish(light=(-0.5, -0.6), varnish=0.2, weave=0.3, crackle=0.0, scale=1.0)` photographs the painting under a lamp and **returns a new HxWx3 uint8 sRGB image**. The canvas is unchanged, so you can keep painting and finish again. Save it with `studio.save(cv.finish(...), path)`.
+`cv.finish(light=(-0.5, -0.6), varnish=0.2, weave=0.3, crackle=0.0, scale=1.0, grime=0.0, edge=0.0, support=None)` photographs the painting under a lamp and **returns a new HxWx3 uint8 sRGB image**. The canvas is unchanged, so you can keep painting and finish again. Save it with `studio.save(cv.finish(...), path)`.
 - `light`: the direction toward the lamp in image coordinates, where (-0.5, -0.6) is the classic upper left. A longer vector puts the lamp lower and rakes harder (elevation `sqrt(1 - x² - y²)`); a 3-tuple gives the direction explicitly.
 - `varnish` 0..1: gloss, a warm amber tint and deeper darks; 0.1-0.25 for a fresh painting, 0.5 and more for an old master.
 - `weave` 0..1: how much canvas texture shows in the light (thick paint buries it).
-- `crackle` 0..1: how far craquelure has gone. About 0.1 is a hint of age (a few hairlines in patches), 0.3 a sparse network, 0.6 a full network with finer cracks between, 1 heavy cracking with cupped islands.
+- `crackle` 0..1: how far craquelure has gone, growing smoothly: about 0.05-0.1 opens a few hairlines in patches, 0.3 is a sparse network, 0.5-0.6 a full one, 1 heavy cracking with finer cracks between. The cracks are hairlines (under a pixel to about 1 px at 2048) that show mostly through the light: the islands between them are cupped, so a crack has a lit lip on the lamp's side, a shadow on the other and a little dirt in the gap. They read as fine dark lines in the lights and pale ones in the darks. Thick paint cracks wider and more sparsely. More crackle opens more of the same network, so a study shows where the final's cracks run, but the hairlines vanish below full size: judge craquelure at 2048 px.
+- `support`: the crack pattern. `"panel"`: a roughly rectangular network, long cracks along the wood grain and short ones across; the grain runs the long way of the panel, as its planks do (up an upright panel); a canvas (`"linen"`, `"cotton"`, `"paper"` or `"canvas"`): an irregular polygonal network with no direction. `None` takes it from `cv.ground(texture=...)` (linen without a ground).
+- `grime` 0..1: the dirt of centuries and the uneven varnish that goes with it: the amber turns a little patchy and deeper in the hollows of the paint and toward the edges, and a grey-brown veil settles there and in the cracks. 0.2-0.4 for an uncleaned old master; much more reads as a filter.
+- `edge`: the rebate band, as a fraction of the shorter side (about 0.02-0.04; 0 = none): the strip a frame covered for centuries, its varnish less yellowed and less dirty, with a line of dust along its inner edge. It shows when the painting is seen out of its frame, as in a museum photograph; a frame drawn around the painting should overlap it.
 - `scale`: the canvas size relative to 2048 px, the `S` the script multiplies its sizes by. Pass `scale=S`: the relief is then lit and the craquelure drawn as on the 2048 px render, so a 900 px study looks about as embossed as the final. Without it, heights are lit as they lie in pixels and a study looks heavier. The weave and the bristle furrows stay pixel-sized, so judge the surface itself at the final size.
+
+An old master on an oak panel, about 350 years old: `cv.finish(light=(-0.5, -0.6), varnish=0.5, weave=0.2, crackle=0.55, grime=0.3, edge=0.025, scale=S)` over a `texture="panel"` ground (on linen the same values give a canvas's polygonal network). With `crackle`, `grime` and `edge` at 0 the image is exactly what `finish` gave before they existed, so older paintings re-render unchanged.
 
 ## Studio (the eyes)
 
@@ -329,6 +334,90 @@ function washes() {
   });
 },
 ```
+
+### Papers and light media
+
+`Paper.init(W, H, SEED, { preset })` picks a named sheet and paints it over the canvas: the stock's colour with tone clouds, fibres and flecks, and the grain that `tooth`, `dryBrush` and granulation use. `kind` and `grain` still override the preset's. `Paper.presets[name].color` is the stock's colour, for `background()` and your palette. `lift` and `margin` go back to the preset's sheet, not to a flat colour. A sheet is the whole canvas: to show several papers side by side, draw each on its own and copy the panel over, as `dry/sheets/papers_sheet.html` does.
+
+| Preset | Stock | For |
+|---|---|---|
+| `'blue-black'` | very dark blue, fine tooth, faint lighter fibres | white ink, white pencil, chalk |
+| `'kraft'` | brown wrapping paper with fibres and bark flecks | pen, graphite, white ink |
+| `'warm-grey'`, `'cool-grey'` | mid grey, fine tooth | graphite with white chalk highlights |
+| `'graph'` | cream with a printed grid: 22 px squares at 2048, pale blue-green, a stronger line every 5th (`Paper.presets.graph.grid`) | technical drawing, plans, pencil and pen |
+
+The light media are p5.brush brushes that `Paper.init` registers when it has a preset (`Paper.media()` does it without one; it is safe to call twice): `whiteink` (opaque, crisp, pen-fine: lines, stars, lettering), `whitepencil` (waxy: hatching) and `chalk` (wide and dusty: masses). Use them like the built-ins, `brush.set('whiteink', '#f3f0e8', 1)`, and they work with `brush.hatchStyle`, `brush.spline` and `Lettering`. Settings that read well:
+- A white mark is high contrast on dark paper, so the layer `tooth` has to be high before the grain shows: `whitepencil` 0.8 and `chalk` 0.9 on `'blue-black'`, `chalk` 0.6 on grey (less contrast, lower tooth). Graphite (`HB`, `2B`) on grey, kraft or graph paper wants 0.2-0.3; at 0.5 thin lines break into dots.
+- p5.brush blends its marks with the paper, so a white line tops out at about 85% white. Draw an important line twice for a brighter white, or use `Paper.stroke(buf, pts, w, '#ffffff', { mode: 'opaque' })` for pure white ink or gouache.
+- Light media go on last, over the pen and graphite layers.
+
+When: drawings on toned paper (graphite and chalk on grey, white ink on black, pen on kraft), plans and diagrams on graph paper.
+
+```js
+const PAPER_PRESET = 'blue-black';
+const PAPER = Paper.presets[PAPER_PRESET].color;            // the flat colour, for background()
+function setup() { /* createCanvas, brush.scaleBrushes(W / 200), ... */ background(PAPER); Paper.init(W, H, SEED, { preset: PAPER_PRESET }); }
+const LAYERS = [
+function lines() { brush.set('whiteink', '#f3f0e8', 1); brush.spline([[200, 400], [500, 340, 1.2], [900, 420]], 0.6); },
+function tone()  { brush.noStroke(); brush.hatch(9, 50); brush.hatchStyle('whitepencil', '#f3f0e8', 1); brush.rect(300, 500, 400, 300); brush.noHatch(); },
+];
+LAYERS.find(f => f.name === 'tone').tooth = 0.8;
+```
+
+### Single-stroke lettering
+
+`dry/lettering.js` (loaded by `template.html`) writes text as pen strokes with the current p5.brush brush, so labels look hand-lettered and not typeset. The glyphs are skeleton lines drawn for this kit in the manner of the Hershey single-stroke fonts (no third-party font data): A-Z, a-z, 0-9, `. , : ; ! ? ' " - – — / ( ) [ ] & + = % # @ * ° · _ < >` and the Turkish ç ğ ı İ ö ş ü with their capitals.
+
+- `Lettering.text(str, x, y, opts)` draws `str` with its baseline at `(x, y)` and returns the width in px. Set the brush first: `brush.set('fineliner', '#2b2622', 1.4)`.
+- `Lettering.paths(str, x, y, opts)` returns the same strokes as `[{ pts: [[x, y, pressure], ...] }]` and draws nothing: use it to cut letters into a print mask or to plot them.
+- `Lettering.width(str, opts)` measures, for right-aligning or fitting a title block.
+- `opts`: `size` (cap height in px, default 24; lowercase is 0.64 of it), `slant` (degrees, positive leans right), `spacing` (extra space between letters as a share of `size`; 0.3-0.4 for spaced map capitals), `jitter` (0..1 hand wobble, default 0.35; 0 is ruled), `seed` (same text and seed, same strokes; p5's random stream is untouched), `angle` (degrees counter-clockwise, as in `brush.hatch`), `align` (`'left'`, `'center'`, `'right'`: which part of the text sits at `x`) and `along` (a path `[[x, y], ...]` to set the text along: a label on a shore or a river).
+- **Brushes:** the built-in `pen`, `rotring`, `HB` and `cpencil` scatter and fade on strokes this short, and small text turns to noise. The first `Lettering` call registers `fineliner` (an opaque crisp pen, weight 1-2 at 2048 px) and `finepencil` (a pencil with little scatter, weight 0.8-1.8); `whiteink` does the same in white on dark paper. Text under about 14 px is at the limit: use size 16 and up at 2048 px.
+- Lettering is many strokes: p5.brush drops the ones that come late in a heavy frame, so give a block of text a layer of its own.
+
+When: titles and title blocks, map labels, annotations, dimension notes, a caption inside the picture: anything a draughtsman or an atlas would write by hand. Vary `seed` from one label to the next, or repeated words come out identical.
+
+```js
+function labels() {
+  brush.set('fineliner', '#1f1b17', 1.4);
+  Lettering.text('THE BOSPHORUS, A SECTION', 80, 120, { size: 40, spacing: 0.08, seed: 1 });
+  Lettering.text('Kadıköy–Karaköy 06:40', 900, 1180, { size: 76, align: 'center', seed: 2 });
+  Lettering.text('KADIKÖY', 0, 0, { size: 38, spacing: 0.34, along: [[140, 498], [330, 438], [520, 408]], seed: 3 });
+  brush.set('finepencil', '#2f6f9f', 1.2);
+  Lettering.text('iskele 3', 600, 436, { size: 16, slant: 10, seed: 4 });
+}
+```
+
+See `dry/sheets/lettering_sheet.html` (a title block, a map label, annotations, the options and every glyph).
+
+### Print look: relief prints and riso
+
+`dry/print.js` (loaded by `template.html`) prints flat inks the way a linocut, a woodcut or a risograph does. Each ink is a mask printed as one flat colour with the process's texture: roller mottle, the paper's grain showing through the ink, pinholes and a little squash at the edge. Relief prints get gouge marks that follow a direction field; riso prints get grain and halftone. Every plate after the first prints slightly off register, and inks combine by multiply, so an overprint is darker. It works on the pixels like `Paper.stroke`, on the sheet `Paper.init` made, and its grain is that sheet's (a rougher `kind` shows more).
+
+- `Print.ink(buf, plate)` inside `Paper.paint(buf => ...)` prints one ink. Order is the order of the plates. `plate`:
+  - `color`: `'#rrggbb'` or a name in `Print.inks` (relief `black`, `red`, `blue`, `brown`, `green`; riso `teal`, `fluoOrange`, `riso_blue`, `fluoPink`, `yellow`, `riso_green`, `risoRed`, `purple`, `risoBlack`).
+  - `mask`: a polygon `[[x, y], ...]`, a list of polygons, a function `g => { ... }` that draws the shapes in white on a 2D canvas context (arcs, rects, thick strokes), or a `Float32Array(W * H)` of 0..1. `Print.mask(src)` makes the array, to reuse a mask or draw letters into it (`Lettering.paths`, stroked thick).
+  - `kind`: `'relief'` (default) or `'riso'`. `opacity`, `mottle`, `load` (ink reaching the paper's pits; low lets the grain show), `pinholes`, `squash`, `rough` (edge) start from the process's values; `texture` 0..1 scales them all (0 is perfectly flat).
+  - `gouge`: `{ field, spacing, length: [min, max], width, tone }` cuts lens-shaped marks out of the ink. `field` is an angle or a function `(x, y) => degrees`: `Print.fields.constant(deg)`, `radial([x, y])`, `vortex([x, y], twist)`, `noise(scale, seed)` and `contour(mask, sigma)` (marks that follow a shape's edges). **Angles count counter-clockwise, 90 = up, like `brush.hatch`** (not the oil engine's y-down angles). `tone(x, y)` is 0..1, how light the place should be cut: more and wider gouges where it is high, none at 0. That is how a linocut models light: cut hard toward the light, leave the shadow solid.
+  - `halftone`: `{ tone, cell, angle, shape }` prints a tone map (a function `(x, y) => 0..1` or a `Float32Array`) as dots (`'dot'`, default), `'line'` or `'grain'`; the mask still bounds the ink. Use a different `angle` per ink (15, 75, 45) so the screens do not line up.
+  - `register`: `[dx, dy, rotation]`; by default none for the first plate of a run and a seeded offset of about 4 px at 2048 for each later one. `Print.init({ seed, misregister })` starts a new run and sets that size; every `Paper.init` starts one too.
+- All sizes are px at 2048 and scale with the canvas. The result is deterministic for the sheet's seed and the `Print.init` seed.
+
+When: linocut and woodcut, stamps and posters, riso zines, any flat-colour picture that should look printed. Plan the plates as a printer would: the key block (black) carries the drawing and the gouges, the colour block sits under or beside it. A plate is one ink pass: put everything that ink prints into one mask (and one `tone` function), or each piece gets its own register offset. Overprint deliberately: multiply turns teal and orange into a dark olive, red under black into black.
+
+```js
+function prints() {
+  Paper.paint(buf => {
+    const sun = g => { g.beginPath(); g.arc(1000, 700, 300, 0, 7); g.fill(); };
+    const sky = g => { g.fillRect(100, 100, 1800, 900); };
+    Print.ink(buf, { color: 'black', mask: sky, gouge: { field: Print.fields.radial([1000, 700]), spacing: 12, width: 7,
+                     tone: (x, y) => Math.max(0, 1.15 - Math.hypot(x - 1000, y - 700) / 600) } });   // rays around the sun
+    Print.ink(buf, { color: 'red', mask: sun });                       // a second block, slightly off register
+  });
+}
+```
+
+See `dry/sheets/print_sheet.html`: a two-block black-and-red relief and a two-ink riso (teal and fluorescent orange) with the overprint.
 
 ## Extending the kit
 

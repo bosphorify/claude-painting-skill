@@ -27,3 +27,18 @@ Lessons about the kit itself rather than a painter: tools that misbehave, traps,
   the small brushes, because every band and ripple raises the error. Blurring the bands out of the plan the block-in
   sees (normalized Gaussian inside the field's mask) leaves them as broad thin fields; long dragged strokes
   (`fill_strokes`, filbert, `load=0.55`, length 450-1200 px, colours from the full design) then carry the bands.
+
+## 2026-09-29 · the aged surface (plan-006 P1)
+
+- **Craquelure redone, because the old one read as dried mud.** It drew one isotropic Voronoi net of dark grooves
+  (Y-junctions, 60-100 px cells) whose cells changed with the amount, the same on panel and linen. Now the network is
+  fixed by the canvas (seed, size, support, paint thickness) and `crackle` opens more of it: first cracks in patches,
+  then the islands between them, then finer ones, all T-junctions. They are hairlines that show through the light (a
+  cupped island's lit lip on the lamp side, a shadow on the other), not painted lines. On `panel` they run with the
+  grain, the long way of the panel (a blind critic's first objection was cracks across an upright panel's planks);
+  on canvas they have no direction.
+- **`grime` and `edge`** age the varnish: patchy amber, deeper in the hollows and toward the edges, dirt in the
+  cracks, the strip under the frame's rebate. A strong veil greys everything and reads as a filter; keep grime at
+  0.2-0.4.
+- 17th-century panel: `varnish=0.5, crackle=0.55, grime=0.3, edge=0.025` (techniques.md, Finish). Defaults are
+  pixel-identical to before (Claesz and Munch re-rendered byte for byte).

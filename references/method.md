@@ -2,6 +2,30 @@
 
 The order is the one painters use because each step fixes the decisions the next one depends on: the look (dossier), then composition and values (thumbnails), then the plan (design map), then paint from big and thin to small and thick, then critique. All code lives in `paintings/<slug>/`; calls are listed in `techniques.md`.
 
+## 0. The idea
+
+When the brief leaves the idea open (a subject without a treatment, or "paint something"), find the idea before the dossier. Models drift to the same pictures:
+- twilight or moonlight;
+- a lamp in the dark;
+- a path of light on water toward a central sun;
+- a lone figure seen from behind;
+- a jug-and-fruit still life;
+- quiet melancholy.
+
+Use one of these only when the idea needs it.
+
+1. Write 8 one-line concepts that differ in:
+   - subject domain: science, infrastructure, an everyday object, myth, pattern, a place;
+   - medium;
+   - viewpoint: eye level, plan, axonometric, straight down, extreme close-up;
+   - time of day;
+   - palette rule: one accent colour, two colours, full;
+   - mood.
+2. Pick the most surprising one the kit can do well, and say why in `dossier.md`.
+3. If the project shows its earlier works (an overview sheet, or tags in `label.json`), the new one must differ from its nearest neighbour on at least two of those axes. Where the project has a portfolio script, it reports this.
+
+A conceit plus a constraint beats a described scene, for example "the ferry's docking manoeuvre as an engineer's drawing, one red line". Keep commissions short enough to leave room for this.
+
 ## 1. The style dossier (`dossier.md`)
 
 Writing the painter down as decisions turns "Turner-ish" into parameters and gives the critique something to check against. Work from knowledge of the painter's work; no reference images. For a living artist, the dossier describes technique and the composition is your own.
@@ -65,6 +89,10 @@ A painting that fails at 512 px fails at 2048, and at 512 px a design takes abou
 - **Thumbnails (oil):** put the composition choices at the top of `paint.py` (horizon height, focal point, format), render the design map of 2-3 variants at 512×384 and save each with `studio.save(srgb8(design), out / "thumbs" / f"{name}.png")`. Compare their review sheets: the value map (5 levels) and the squint panel show whether the big pattern reads. Pick the variant with the clearest value pattern and focal point, and say why in `dossier.md`.
 - **Value study:** the review sheet of `design.png` (the starter writes it on every run) is the value study. Check for 3-5 value masses rather than confetti, the strongest contrast at the focal point, and a squint that isn't flat mid-grey. Fix values in the design now: strokes and glazes can nudge values but can't rescue a weak value plan.
 - **Painted thumbnail (optional):** `paint.py <out> --width 512` runs the whole painting in a few seconds and shows whether the stroke scale suits the picture.
+- **When the user picks the composition:**
+  - Show two options on one captioned sheet: the painted thumbnails of the two strongest variants.
+  - Each option must pass the readability check (`critique.md`).
+  - Offer two, not three: a third option adds a whole sketch's cost and seldom changes the pick.
 - **Dry media:** set `W = 512` (keep all coordinates as fractions of `W, H`) and render the composition in flat values; read the value map the same way. The paper grain and the dry brush only read at full size (§5), so this stage is for shapes and values, not surface.
 
 ## 3. The design map in code

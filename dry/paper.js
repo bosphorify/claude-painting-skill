@@ -9,6 +9,11 @@
 //           'laid' (Ingres / Michallet charcoal paper: fine grain plus laid and chain lines).
 //     grain: scales the bump size (1 = about 1 mm on a sheet 50 cm wide).
 //
+//   Paper.init(W, H, SEED, { preset: 'kraft' })   a named sheet: 'blue-black', 'kraft', 'warm-grey', 'cool-grey' or 'graph'.
+//     It sets the colour, the grain and the sheet's own look (tone clouds, fibres, flecks, a printed grid), paints it, and
+//     registers the light media below. Paper.presets is the table; Paper.presets['kraft'].color is the colour for
+//     background(). Paper.media() registers the p5.brush brushes 'whiteink', 'whitepencil' and 'chalk'.
+//
 //   layerFn.tooth = 0.6   a p5.brush layer whose marks catch only on the grain (charcoal, conté, pastel, pencil).
 //     0 = no effect, 0.5 = only the deepest pits stay clean, 0.8 = only the top of the peaks. Heavier marks reach
 //     further into the pits, like pressure on a crayon. template.html's draw() does the bookkeeping.
@@ -46,6 +51,8 @@
 const Paper = (() => {
   let W = 0, H = 0, S = 1, h = null, work = null, img = null, SEEDV = 1, marks = 0;
   let paperRGB = [255, 255, 255];
+  let epoch = 0; // counts Paper.init calls, so helpers built on it (print.js) know a new sheet has begun
+  let spec = null, sheetPx = null; // the preset in use, and its bare sheet as RGBA bytes (what lift and margin go back to)
 
   // mulberry32: a small seeded PRNG, so the paper never draws from p5's random stream
   const rng = seed => () => {
@@ -99,8 +106,11 @@ const Paper = (() => {
     return a;
   }
 
-  function init(width, height, seed = 1, { kind = 'cold', grain = 1 } = {}) {
-    W = width; H = height; S = W / 2048; SEEDV = seed; marks = 0;
+  function init(width, height, seed = 1, { kind, grain, preset = null } = {}) {
+    if (preset && !PRESETS[preset]) throw new Error(`Paper.init: unknown preset '${preset}' (${Object.keys(PRESETS).join(', ')})`);
+    spec = preset ? PRESETS[preset] : null; sheetPx = null;
+    kind = kind ?? spec?.kind ?? 'cold'; grain = grain ?? spec?.grain ?? 1;
+    W = width; H = height; S = W / 2048; SEEDV = seed; marks = 0; epoch++;
     const rand = rng(seed * 7919 + 17);
     const g = grain * S * 1.3; // bump radius in px: bumps about 1.5 mm across on a 50 cm sheet at 2048 px
     const a = new Float32Array(W * H);
@@ -131,7 +141,11 @@ const Paper = (() => {
     for (let i = 0; i < h.length; i++) h[i] = clamp(h[i], 0, 1);
     work = document.createElement('canvas');
     work.width = W; work.height = H;
-    paperRGB = hexRGB(typeof PAPER === 'string' ? PAPER : '#ffffff');
+    paperRGB = hexRGB(spec ? spec.color : typeof PAPER === 'string' ? PAPER : '#ffffff');
+    if (spec) {
+      media();
+      if (typeof drawingContext !== 'undefined') paint(sheet);
+    }
     return h;
   }
 
@@ -186,8 +200,8 @@ const Paper = (() => {
       // a transparent film (Beer-Lambert): k = 1 turns white paper into the color itself
       for (let j = 0; j < 3; j++) buf[i + j] *= Math.pow(Math.max(col[j], 1) / 255, k);
     } else {
-      const t = mode === 'lift' ? paperRGB : col, a = Math.min(1, k);
-      for (let j = 0; j < 3; j++) buf[i + j] += (t[j] - buf[i + j]) * a;
+      const a = Math.min(1, k);
+      for (let j = 0; j < 3; j++) buf[i + j] += ((mode !== 'lift' ? col[j] : sheetPx ? sheetPx[i + j] : paperRGB[j]) - buf[i + j]) * a;
     }
   }
 
@@ -489,7 +503,7 @@ const Paper = (() => {
       if (wl > 0) d = Math.min(d, x - wl + j);
       if (wr > 0) d = Math.min(d, W - 1 - x - wr + j);
       if (d === Infinity || d > 3 * S + 2) continue;
-      if (d <= 0) { for (let c = 0; c < 3; c++) buf[i + c] = paperRGB[c]; continue; }
+      if (d <= 0) { for (let c = 0; c < 3; c++) buf[i + c] = sheetPx ? sheetPx[i + c] : paperRGB[c]; continue; }
       // just inside the stopped edge the pigment is a little denser (the dried rim)
       const k = 1 + pool * (1 - d / (3 * S + 2));
       for (let c = 0; c < 3; c++) { const t = buf[i + c] / paperRGB[c]; if (t < 1) buf[i + c] = paperRGB[c] * Math.pow(Math.max(t, 1e-3), k); }
@@ -516,6 +530,96 @@ const Paper = (() => {
     write(d);
   }
 
-  return { init, read, write, tooth, paint, shape, stroke, dryBrush, outline, path, mix, margin, finish, rng,
+  // ---- papers: named sheets, with the look of the stock ----
+  // color: the stock's mean colour; clouds: tone patches; tooth: the grain's own light and shade (both relative to the colour);
+  // fibres (per megapixel) and flecks: light/dark strands and specks; tint: per-channel colour drift; grid: a printed grid
+  // (step and width in px at 2048, a stronger line every `every`, density 0..1 of the ink over the paper).
+  const PRESETS = {
+    'blue-black': { color: '#161e2d', kind: 'cold', grain: 0.75, clouds: 0.3, tooth: 0.14, fibres: 260, fibreDir: 0, fibreSpread: 180, fibreAmp: 0.3, flecks: 0, tint: [0, 0.05, 0.12] },
+    kraft: { color: '#b48f63', kind: 'rough', grain: 0.55, clouds: 0.1, tooth: 0.07, fibres: 900, fibreDir: 5, fibreSpread: 70, fibreAmp: 0.1, flecks: 14, tint: [0.03, 0, -0.06] },
+    'warm-grey': { color: '#b5aea2', kind: 'cold', grain: 0.8, clouds: 0.05, tooth: 0.06, fibres: 240, fibreDir: 0, fibreSpread: 180, fibreAmp: 0.05, flecks: 2, tint: [0.015, 0, -0.02] },
+    'cool-grey': { color: '#a7afb5', kind: 'cold', grain: 0.8, clouds: 0.05, tooth: 0.06, fibres: 240, fibreDir: 0, fibreSpread: 180, fibreAmp: 0.05, flecks: 2, tint: [-0.015, 0, 0.02] },
+    graph: { color: '#f3edd8', kind: 'hot', grain: 1, clouds: 0.03, tooth: 0.04, fibres: 120, fibreDir: 0, fibreSpread: 180, fibreAmp: 0.04, flecks: 1, tint: [0.01, 0, -0.03],
+      grid: { step: 22, every: 5, ink: '#6db6a6', width: 1.1, minor: 0.42, major: 0.72 } },
+  };
+
+  // The sheet's look written into buf (RGBA bytes, the whole canvas): the stock colour with tone clouds, fibres, flecks and
+  // the tooth's light and shade, all centred on the stock colour; then the printed grid. Paper.init with a preset calls
+  // it; the result is kept as the bare sheet that lift and margin return to.
+  function sheet(buf) {
+    if (!spec) throw new Error('Paper.sheet: call Paper.init with a preset first');
+    const R = rng(SEEDV * 4099 + 11), N = W * H, f = new Float32Array(N), tone = new Float32Array(N);
+    const c1 = vnoise(R, 260 * S), c2 = vnoise(R, 70 * S), c3 = vnoise(R, 16 * S), hue = vnoise(R, 320 * S);
+    for (let y = 0, i = 0; y < H; y++) for (let x = 0; x < W; x++, i++) {
+      f[i] = 1 + spec.clouds * 2 * (0.55 * (c1(x, y) - 0.5) + 0.3 * (c2(x, y) - 0.5) + 0.15 * (c3(x, y) - 0.5)) + spec.tooth * 2 * (h[i] - 0.5);
+      tone[i] = hue(x, y) - 0.5;
+    }
+    const splat = (x, y, v) => { // bilinear, so a strand is about a pixel wide
+      const xi = Math.floor(x), yi = Math.floor(y), fx = x - xi, fy = y - yi;
+      if (xi < 0 || yi < 0 || xi + 1 >= W || yi + 1 >= H) return;
+      const i = yi * W + xi;
+      f[i] += v * (1 - fx) * (1 - fy); f[i + 1] += v * fx * (1 - fy); f[i + W] += v * (1 - fx) * fy; f[i + W + 1] += v * fx * fy;
+    };
+    for (let k = 0, n = Math.round(spec.fibres * N / 1e6); k < n; k++) {
+      let x = R() * W, y = R() * H, a = (spec.fibreDir + (R() - 0.5) * spec.fibreSpread) * Math.PI / 180;
+      const len = (8 + R() * 26) * S, bend = (R() - 0.5) * 0.08 / S, amp = (0.4 + 0.6 * R()) * spec.fibreAmp * (R() < 0.6 ? 1 : -1);
+      for (let d = 0; d < len; d += 0.6) {
+        splat(x, y, amp * Math.sin(Math.PI * d / len) * 0.6);
+        x += Math.cos(a) * 0.6; y += Math.sin(a) * 0.6; a += bend * 0.6;
+      }
+    }
+    for (let k = 0, n = Math.round(spec.flecks * N / 1e6); k < n; k++) {
+      const cx = R() * W, cy = R() * H, r = (0.8 + R() * 1.8) * S, am = 0.18 + 0.3 * R();
+      for (let y = Math.max(0, Math.floor(cy - 2 * r)); y <= Math.min(H - 1, Math.ceil(cy + 2 * r)); y++)
+        for (let x = Math.max(0, Math.floor(cx - 2 * r)); x <= Math.min(W - 1, Math.ceil(cx + 2 * r)); x++)
+          f[y * W + x] -= am * Math.exp(-1.2 * ((x - cx) ** 2 + (y - cy) ** 2) / (r * r));
+    }
+    for (let i = 0; i < N; i++) {
+      for (let c = 0; c < 3; c++) buf[4 * i + c] = clamp(Math.round(paperRGB[c] * f[i] * (1 + spec.tint[c] * tone[i])), 0, 255);
+      buf[4 * i + 3] = 255;
+    }
+    if (spec.grid) printGrid(buf, spec.grid);
+    sheetPx = Uint8ClampedArray.from(buf);
+  }
+
+  // A printed grid: fine lines in a pale ink, a stronger one every `every` squares, centred on the sheet. The ink sits on
+  // the peaks of the grain and thins a little along the line, as printed lines do.
+  function printGrid(buf, g) {
+    const step = g.step * S, lw = Math.max(1, g.width * S), ink = hexRGB(g.ink), R = rng(SEEDV * 6151 + 5), wob = vnoise(R, 90 * S);
+    const axis = (n, size) => { // per pixel along one axis: the nearest line's coverage times its density
+      const o = (size % step) / 2, out = new Float32Array(n);
+      for (let p = 0; p < n; p++) {
+        const t = (p + 0.5 - o) / step, k = Math.round(t), major = ((k % g.every) + g.every) % g.every === 0;
+        out[p] = clamp((major ? 1.5 * lw : lw) / 2 + 0.5 - Math.abs(t - k) * step, 0, 1) * (major ? g.major : g.minor);
+      }
+      return out;
+    };
+    const cols = axis(W, W), rows = axis(H, H);
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+      const a = Math.max(cols[x], rows[y]);
+      if (a <= 0) continue;
+      const i = y * W + x, k = a * (0.7 + 0.6 * h[i]) * (0.85 + 0.3 * wob(x, y));
+      for (let c = 0; c < 3; c++) buf[4 * i + c] *= 1 - k * (1 - ink[c] / 255);
+    }
+  }
+
+  // Light media for dark paper, as p5.brush brushes: 'whiteink' (opaque, crisp, pen-fine), 'whitepencil' (waxy, catches on the
+  // grain) and 'chalk' (wide, dusty). Use them like the built-ins: brush.set('whiteink', '#f3f0e8', 1). Pencil and chalk
+  // break up on the grain only under a high layer tooth (0.8 and 0.9): on dark paper a white mark is high contrast, so a
+  // low tooth lets it through everywhere. Safe to call again.
+  function media() {
+    if (typeof brush === 'undefined' || typeof brush.add !== 'function') return;
+    const have = brush.box();
+    const defs = {
+      whiteink: { type: 'default', weight: 0.25, scatter: 0.03, sharpness: 0.95, grain: 12, opacity: 255, spacing: 0.05, pressure: { curve: [0.25, 0.3], min_max: [1.12, 0.95] }, noise: 0.08 },
+      whitepencil: { type: 'default', weight: 0.45, scatter: 1.2, sharpness: 0.6, grain: 0.8, opacity: 170, spacing: 0.06, pressure: { curve: [0.15, 0.2], min_max: [0.95, 1.1] }, noise: 0.3 },
+      chalk: { type: 'default', weight: 0.9, scatter: 3.4, sharpness: 0.35, grain: 1.2, opacity: 255, spacing: 0.03, pressure: { curve: [0.15, 0.4], min_max: [1.1, 0.95] }, noise: 0.4 },
+    };
+    for (const [name, def] of Object.entries(defs)) if (!have.includes(name)) brush.add(name, def);
+  }
+
+
+  return { init, read, write, tooth, paint, shape, stroke, dryBrush, outline, path, mix, margin, finish, rng, sheet, media, presets: PRESETS,
+    get size() { return { W, H, S, seed: SEEDV }; }, get epoch() { return epoch; },
     roughen: (poly, amp, seed = 1) => roughen(poly, amp, rng(seed)), noise: (seed, cell) => vnoise(rng(seed), cell), get height() { return h; } };
 })();

@@ -72,6 +72,12 @@ Each round, name the one to three biggest problems in the order above, change th
 
 Add a third when the scores are still rising and the top fix is one the kit can make. If you can't start a subagent, score the rubric yourself before rereading your notes, and treat the scores as rough.
 
+**The readability check.** A painting whose subject no viewer can name has failed, however good the paint.
+- **When:** once before the final, and once per option when the user picks between sketches.
+- **How:** give a fresh subagent only the image, with no title and no text, and ask "What is this a picture of? One sentence." Run it on Sonnet.
+- **Pass:** the answer names the subject.
+- **On a fail:** change the one thing that misleads (a shape, a value, a missing cue) and ask a new reader once more.
+
 The dossier summary is 5-10 lines in plain words: painter, period and the works in mind; subject; palette; key and the value pattern in one sentence; the focal point, where it is and what should make it win; edges; surface. Leave out the stroke-to-kit table, so the critic judges what it sees rather than the tools. The prompt, with the review sheet attached (focal point crop first):
 
 ```text
@@ -90,8 +96,9 @@ Score each from 1 to 10, with one line of evidence (what you see, and where):
 5. Paint quality at 1:1: reads as paint (varied, broken, layered marks), not as code (repeats, grids, ruled lines,
    flat fills).
 6. Style fidelity: reads as {painter}, not as another painter or a filter.
+7. The idea: one clear idea, and something a viewer would not expect. Name what looks generic.
 
-Then at most three fixes, most important first: what is wrong, where, and what it should look like instead.
+Then at most three fixes, most important first: what is wrong, where, and what it should look like instead. Then name one thing that is unique here and must survive the next round.
 Describe the picture, not code. Under 250 words in all.
 ```
 

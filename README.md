@@ -9,6 +9,14 @@ Claude paints the way a painter works, and every mark is computed in code. It us
 | ![A Breath Ago](docs/examples/claesz-snuffed-candle.jpg) *A Breath Ago*, after Pieter Claesz and Willem Claesz Heda | ![The Moon Road](docs/examples/munch-moon-road.jpg) *The Moon Road*, after Edvard Munch |
 | ![Alpine Stream, Noon](docs/examples/sargent-mountain-stream.jpg) *Alpine Stream, Noon*, after John Singer Sargent (watercolor) | ![Self-Portrait as a Murmuration](docs/examples/claude-self-portrait.jpg) *Self-Portrait as a Murmuration*, Claude in its own manner |
 
+In its own manner, painted for a [3D gallery](https://paintings.bosphorify.com) where they hang:
+
+| | |
+|---|---|
+| ![The Two Currents](docs/examples/claude-two-currents.jpg) *The Two Currents*, pen and ink with a two-tint wash | ![Atlas of the 3 a.m. Kitchen](docs/examples/claude-atlas-of-the-3am-kitchen.jpg) *Atlas of the 3 a.m. Kitchen*, white ink and pencil on blue-black paper |
+| ![The Last Olive](docs/examples/claude-the-last-olive.jpg) *The Last Olive*, gouache on paper | ![So We Face Each Other](docs/examples/claude-so-we-face-each-other.jpg) *So We Face Each Other*, a linocut in two colours |
+| ![Every Floor in the Village](docs/examples/claude-every-floor-in-the-village.jpg) *Every Floor in the Village*, oil on linen | ![Penelope's Loom](docs/examples/claude-penelope-loom.jpg) *Penelope's Loom*, oil on oak panel, in the manner of a 17th-century master |
+
 ## What's inside
 
 - **An oil engine** (`oil/`, Python package `atelier`):
@@ -16,14 +24,19 @@ Claude paints the way a painter works, and every mark is computed in code. It us
   - spectral pigment mixing (Kubelka–Munk)
   - bristle brushes that load paint and run dry
   - wet-in-wet, glaze, scumble, impasto and a palette knife
-  - a raking-light finish
-- **Dry media** (`dry/`): pencil, charcoal and ink through p5.brush in headless Chrome, and watercolor washes on a paper layer.
+  - a raking-light finish, and an aged one with craquelure, grime and a rebate band
+- **Dry media** (`dry/`): pencil, charcoal and ink through p5.brush in headless Chrome, and watercolor washes on a paper layer. Also:
+  - toned and dark papers (kraft, greys, graph, blue-black) with white ink and chalk
+  - single-stroke lettering
+  - the look of a relief print or a riso print
 - **The method** (`SKILL.md`, `references/`):
+  - an idea step: eight one-line concepts, then the most surprising one the kit does well
   - a style dossier
   - thumbnails and a value study
   - painting in layers, with snapshots
   - review sheets: value map, squint view and 1:1 crops
-  - a fresh-eye critic and blind A/B choices
+  - a readability check, where a second model says what it sees, then a fresh-eye critic and blind A/B choices
+  - a budget per painting, so the critique loop ends
 - **A sketchbook** (`sketchbook/`) of lessons per painter, so the next painting starts where the last one stopped.
 
 ## Install
@@ -55,7 +68,7 @@ The skill runs from the brief to a finished picture. It writes `final.png`, its 
 
 ```bash
 cd ~/.claude/skills/painting/oil && uv run pytest
-cd ~/.claude/skills/painting/dry && node --test test/render.test.mjs
+cd ~/.claude/skills/painting/dry && node --test
 ```
 
 ## Credits
